@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Bridge USDT from Abstract to Ethereum</title>
+  <script src="https://unpkg.com/web3@latest/dist/web3.min.js"></script>
+  <script src="https://unpkg.com/@lifi/sdk"></script>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    button { padding: 10px 20px; font-size: 16px; margin-top: 10px; }
+    #status { margin-top: 20px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h2>🔁 Bridge USDT: Abstract → Ethereum</h2>
+  <p><strong>From:</strong> <code>0xd6502ddAd541CC93a2b2283d771AB10Ef72392fa</code> (Abstract)</p>
+  <p><strong>To:</strong> <code>0xbEA8A76cA8B946cdc823C45c6F122b45C368F600</code> (Ethereum)</p>
+
+  <button onclick="connectWallet()">🔗 Connect Wallet</button>
+  <button onclick="bridgeUSDT()">🚀 Bridge 50 USDT</button>
+  <div id="status">Status: Not connected</div>
+
+  <script>
+    let web3;
+    const fromAddress = '0xd6502ddAd541CC93a2b2283d771AB10Ef72392fa';
+    const toAddress = '0xbEA8A76cA8B946cdc823C45c6F122b45C368F600';
+    let lifi;
+
+    // Initialize LI.FI SDK only after page is fully loaded
+    window.addEventListener("load", () => {
+      lifi = new LiFi.LiFi();
+    });
+
+    async function connectWallet() {
+      if (!window.ethereum) {
+        alert("MetaMask not found.");
+        return;
+      }
+      try {
+        await window.ethereum.request({ method: 'eth_requestAccounts' });
+        web3 = new Web3(window.ethereum);
+        const accounts = await web3.eth.getAccounts();
+        document.getElementById('status').innerText = '✅ Connected: ' + accounts[0];
+      } catch (err) {
+        document.getElementById('status').innerText = '❌ Error: ' + err.message;
+      }
+    }
+
+    async function bridgeUSDT() {
+      if (!lifi) {
+        document.getElementById('status').innerText = '⚠️ LI.FI SDK not initialized yet.';
+        return;
+      }
+
+      document.getElementById('status').innerText = '🔍 Getting bridge route...';
+      try {
+        const routeRequest = {
+          fromChainId: 78110,
+          fromTokenAddress: '0x4300000000000000000000000000000000000003',
+          fromAddress: fromAddress,
+          fromAmount: '50000000',
+          toChainId: 1,
+          toTokenAddress: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+          toAddress: toAddress,
+          options: { slippage: 0.03 }
+        };
+
+        const result = await lifi.getRoutes(routeRequest);
+        const tx = result.routes[0].steps[0].transactionRequest;
+
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: '0x1318E' }]
+        });
+
+        const txHash = await web3.eth.sendTransaction(tx);
+        document.getElementById('status').innerText = '✅ Tx sent: ' + txHash.transactionHash;
+      } catch (err) {
+        document.getElementById('status').innerText = '❌ Bridge error: ' + err.message;
+      }
+    }
+  </script>
+</body>
+</html>
